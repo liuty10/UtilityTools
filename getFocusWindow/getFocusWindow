@@ -1,0 +1,2 @@
+/home/tianyiliu/Documents/workspace/gaming/myprojects/renderBench/exe/supertuxkart-0.9.3-exe/run_game.sh &
+xdotool getactivewindow getwindowname
