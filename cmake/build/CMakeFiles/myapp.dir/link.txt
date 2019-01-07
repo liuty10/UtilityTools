@@ -1,0 +1,1 @@
+/usr/bin/cc     CMakeFiles/myapp.dir/main.c.o  -o myapp -rdynamic 

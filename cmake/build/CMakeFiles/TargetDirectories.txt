@@ -1,0 +1,7 @@
+/home/tianyiliu/Documents/workspace/learn-xxx/cmake/build/CMakeFiles/install.dir
+/home/tianyiliu/Documents/workspace/learn-xxx/cmake/build/CMakeFiles/list_install_components.dir
+/home/tianyiliu/Documents/workspace/learn-xxx/cmake/build/CMakeFiles/rebuild_cache.dir
+/home/tianyiliu/Documents/workspace/learn-xxx/cmake/build/CMakeFiles/install/local.dir
+/home/tianyiliu/Documents/workspace/learn-xxx/cmake/build/CMakeFiles/install/strip.dir
+/home/tianyiliu/Documents/workspace/learn-xxx/cmake/build/CMakeFiles/myapp.dir
+/home/tianyiliu/Documents/workspace/learn-xxx/cmake/build/CMakeFiles/edit_cache.dir
