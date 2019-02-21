@@ -1,0 +1,297 @@
+From 323c9d6b5a8d7ddb8a803bfde7897540504b1bed Mon Sep 17 00:00:00 2001
+From: William Hua <william.hua@canonical.com>
+Date: Tue, 13 Oct 2015 10:18:11 +0100
+Subject: [PATCH] Refresh Mir backend
+
+---
+ configure.ac                |  3 ++-
+ gdk/mir/gdkmir-debug.c      | 61 ++++++++++++++++++++++++++++++++++++++++++++-
+ gdk/mir/gdkmirdisplay.c     | 23 ++++++++++-------
+ gdk/mir/gdkmireventsource.c | 41 +++++++++++++++++++++++++++++-
+ gdk/mir/gdkmirwindowimpl.c  | 39 +++++++++++++++++++++++++++--
+ 5 files changed, 153 insertions(+), 14 deletions(-)
+
+diff --git a/configure.ac b/configure.ac
+index 10038e0..e35c751 100644
+--- a/configure.ac
++++ b/configure.ac
+@@ -61,6 +61,7 @@ m4_define([gdk_pixbuf_required_version], [2.30.0])
+ m4_define([introspection_required_version], [1.39.0])
+ m4_define([wayland_required_version], [1.5.91])
+ m4_define([mirclient_required_version], [0.11.0])
++m4_define([mircookie_required_version], [0.17.0])
+ m4_define([epoxy_required_version], [1.0])
+ GLIB_REQUIRED_VERSION=glib_required_version
+ PANGO_REQUIRED_VERSION=pango_required_version
+@@ -457,7 +458,7 @@ else
+   AM_CONDITIONAL(USE_WAYLAND, false)
+ fi
+ 
+-MIR_DEPENDENCIES="mirclient >= mirclient_required_version"
++MIR_DEPENDENCIES="mirclient >= mirclient_required_version mircookie >= mircookie_required_version"
+ if test "$enable_mir_backend" = "maybe" ; then
+   PKG_CHECK_EXISTS($MIR_DEPENDENCIES, [have_mir_deps=yes], [have_mir_deps=no])
+   AC_MSG_CHECKING([for MIR_DEPENDENCIES])
+diff --git a/gdk/mir/gdkmir-debug.c b/gdk/mir/gdkmir-debug.c
+index a135f1b..8355167 100644
+--- a/gdk/mir/gdkmir-debug.c
++++ b/gdk/mir/gdkmir-debug.c
+@@ -91,6 +91,62 @@ _gdk_mir_print_key_event (const MirInputEvent *event)
+   g_printerr (" Event Time %lli\n", (long long int) mir_input_event_get_event_time (event));
+ }
+ 
++static void
++_gdk_mir_print_touch_event (const MirInputEvent *event)
++{
++  const MirTouchEvent *touch_event = mir_input_event_get_touch_event (event);
++  guint i;
++  guint n;
++
++  if (!touch_event)
++    return;
++
++  g_printerr ("TOUCH\n");
++  g_printerr (" Device %lld\n", (long long int) mir_input_event_get_device_id (event));
++  g_printerr (" Event Time %lld\n", (long long int) mir_input_event_get_event_time (event));
++  _gdk_mir_print_modifiers (mir_touch_event_modifiers (touch_event));
++  n = mir_touch_event_point_count (touch_event);
++
++  for (i = 0; i < n; i++)
++    {
++      g_printerr (" [%u] (%u/%u) ", mir_touch_event_id (touch_event, i), i + 1, n);
++      switch (mir_touch_event_action (touch_event, i))
++        {
++        case mir_touch_action_down:
++          g_printerr ("Down");
++          break;
++        case mir_touch_action_up:
++          g_printerr ("Up");
++          break;
++        case mir_touch_action_change:
++          g_printerr ("Change");
++          break;
++        default:
++          g_printerr ("%u", mir_touch_event_action (touch_event, i));
++          break;
++        }
++      switch (mir_touch_event_tooltype (touch_event, i))
++        {
++        case mir_touch_tooltype_unknown:
++          g_printerr (" ? ");
++          break;
++        case mir_touch_tooltype_finger:
++          g_printerr (" finger ");
++          break;
++        case mir_touch_tooltype_stylus:
++          g_printerr (" stylus ");
++          break;
++        }
++      g_printerr ("\n  x: %f y: %f P: %f A: %f B: %f d: %f\n",
++                  mir_touch_event_axis_value (touch_event, i, mir_touch_axis_x),
++                  mir_touch_event_axis_value (touch_event, i, mir_touch_axis_y),
++                  mir_touch_event_axis_value (touch_event, i, mir_touch_axis_pressure),
++                  mir_touch_event_axis_value (touch_event, i, mir_touch_axis_touch_major),
++                  mir_touch_event_axis_value (touch_event, i, mir_touch_axis_touch_minor),
++                  mir_touch_event_axis_value (touch_event, i, mir_touch_axis_size));
++    }
++}
++
+ void
+ _gdk_mir_print_motion_event (const MirInputEvent *event)
+ {
+@@ -138,6 +194,8 @@ _gdk_mir_print_motion_event (const MirInputEvent *event)
+   g_printerr ("\n");
+   g_printerr (" Offset (%f, %f)\n", mir_pointer_event_axis_value (pointer_event, mir_pointer_axis_x),
+                                     mir_pointer_event_axis_value (pointer_event, mir_pointer_axis_y));
++  g_printerr (" Scroll (%f, %f)\n", mir_pointer_event_axis_value (pointer_event, mir_pointer_axis_hscroll),
++                                    mir_pointer_event_axis_value (pointer_event, mir_pointer_axis_vscroll));
+   g_printerr (" Event Time %lli\n", (long long int) mir_input_event_get_event_time (event));
+ }
+ 
+@@ -197,7 +255,7 @@ _gdk_mir_print_event (const MirEvent *event)
+             _gdk_mir_print_key_event (mir_event_get_input_event (event));
+             break;
+           case mir_input_event_type_touch:
+-            _gdk_mir_print_motion_event (mir_event_get_input_event (event));
++            _gdk_mir_print_touch_event (mir_event_get_input_event (event));
+             break;
+           case mir_input_event_type_pointer:
+             _gdk_mir_print_motion_event (mir_event_get_input_event (event));
+diff --git a/gdk/mir/gdkmirdisplay.c b/gdk/mir/gdkmirdisplay.c
+index 6eda352..73f8bcf 100644
+--- a/gdk/mir/gdkmirdisplay.c
++++ b/gdk/mir/gdkmirdisplay.c
+@@ -539,12 +539,19 @@ get_pixel_formats (MirConnection *connection,
+     {
+       *sw_pixel_format = mir_pixel_format_invalid;
+ 
+-      for (i = 0; i < n_formats; i++)
++      for (i = 0; i < n_formats && *sw_pixel_format == mir_pixel_format_invalid; i++)
+         {
+-          if (formats[i] == mir_pixel_format_argb_8888)
++          switch (formats[i])
+             {
++            case mir_pixel_format_abgr_8888:
++            case mir_pixel_format_xbgr_8888:
++            case mir_pixel_format_argb_8888:
++            case mir_pixel_format_xrgb_8888:
++            case mir_pixel_format_rgb_565:
+               *sw_pixel_format = formats[i];
+               break;
++            default:
++              break;
+             }
+         }
+     }
+@@ -553,22 +560,20 @@ get_pixel_formats (MirConnection *connection,
+     {
+       *hw_pixel_format = mir_pixel_format_invalid;
+ 
+-      for (i = 0; i < n_formats; i++)
++      for (i = 0; i < n_formats && *hw_pixel_format == mir_pixel_format_invalid; i++)
+         {
+           switch (formats[i])
+-          {
++            {
+             case mir_pixel_format_abgr_8888:
+             case mir_pixel_format_xbgr_8888:
+             case mir_pixel_format_argb_8888:
+             case mir_pixel_format_xrgb_8888:
++            case mir_pixel_format_rgb_565:
+               *hw_pixel_format = formats[i];
+               break;
+             default:
+-              continue;
+-          }
+-
+-          if (*hw_pixel_format != mir_pixel_format_invalid)
+-            break;
++              break;
++            }
+         }
+     }
+ }
+diff --git a/gdk/mir/gdkmireventsource.c b/gdk/mir/gdkmireventsource.c
+index 5732f2b..19fa997 100644
+--- a/gdk/mir/gdkmireventsource.c
++++ b/gdk/mir/gdkmireventsource.c
+@@ -298,6 +298,45 @@ handle_key_event (GdkWindow *window, const MirInputEvent *event)
+     }
+ }
+ 
++static void
++handle_touch_event (GdkWindow           *window,
++                    const MirTouchEvent *mir_touch_event)
++{
++  const MirInputEvent *mir_input_event = mir_touch_event_input_event (mir_touch_event);
++  guint n = mir_touch_event_point_count (mir_touch_event);
++  GdkEvent *gdk_event;
++  guint i;
++
++  for (i = 0; i < n; i++)
++    {
++      switch (mir_touch_event_action (mir_touch_event, i))
++        {
++        case mir_touch_action_up:
++          gdk_event = gdk_event_new (GDK_TOUCH_END);
++          break;
++        case mir_touch_action_down:
++          gdk_event = gdk_event_new (GDK_TOUCH_BEGIN);
++          break;
++        case mir_touch_action_change:
++          gdk_event = gdk_event_new (GDK_TOUCH_UPDATE);
++          break;
++        }
++
++      gdk_event->touch.window = window;
++      gdk_event->touch.sequence = GINT_TO_POINTER (mir_touch_event_id (mir_touch_event, i));
++      gdk_event->touch.time = mir_input_event_get_event_time (mir_input_event);
++      gdk_event->touch.state = get_modifier_state (mir_touch_event_modifiers (mir_touch_event), 0);
++      gdk_event->touch.x = mir_touch_event_axis_value (mir_touch_event, i, mir_touch_axis_x);
++      gdk_event->touch.y = mir_touch_event_axis_value (mir_touch_event, i, mir_touch_axis_y);
++      gdk_event->touch.x_root = mir_touch_event_axis_value (mir_touch_event, i, mir_touch_axis_x);
++      gdk_event->touch.y_root = mir_touch_event_axis_value (mir_touch_event, i, mir_touch_axis_y);
++      gdk_event->touch.emulating_pointer = TRUE;
++      _gdk_event_set_pointer_emulated (gdk_event, TRUE);
++
++      send_event (window, get_pointer (window), gdk_event);
++    }
++}
++
+ static guint
+ get_button_state (const MirPointerEvent *event)
+ {
+@@ -515,7 +554,7 @@ gdk_mir_event_source_queue_event (GdkDisplay     *display,
+           handle_key_event (window, input_event);
+           break;
+         case mir_input_event_type_touch:
+-          handle_motion_event (window, input_event);
++          handle_touch_event (window, mir_input_event_get_touch_event (input_event));
+           break;
+         case mir_input_event_type_pointer:
+           handle_motion_event (window, input_event);
+diff --git a/gdk/mir/gdkmirwindowimpl.c b/gdk/mir/gdkmirwindowimpl.c
+index 9b3a249..af7badb 100644
+--- a/gdk/mir/gdkmirwindowimpl.c
++++ b/gdk/mir/gdkmirwindowimpl.c
+@@ -280,12 +280,12 @@ send_event (GdkWindow *window, GdkDevice *device, GdkEvent *event)
+   GdkDisplay *display;
+   GList *node;
+ 
++  display = gdk_window_get_display (window);
+   gdk_event_set_device (event, device);
+   gdk_event_set_source_device (event, device);
+   gdk_event_set_screen (event, gdk_display_get_screen (gdk_window_get_display (window), 0));
+   event->any.window = g_object_ref (window);
+ 
+-  display = gdk_window_get_display (window);
+   node = _gdk_event_queue_append (display, event);
+   _gdk_windowing_got_event (display, node, event, _gdk_display_get_next_serial (display));
+ }
+@@ -423,7 +423,42 @@ gdk_mir_window_impl_ref_cairo_surface (GdkWindow *window)
+       ensure_surface (window);
+ 
+       mir_buffer_stream_get_graphics_region (mir_surface_get_buffer_stream (impl->surface), &region);
+-      g_assert (region.pixel_format == mir_pixel_format_argb_8888);
++
++      switch (region.pixel_format)
++        {
++        case mir_pixel_format_abgr_8888:
++          g_warning ("pixel format ABGR 8888 not supported, using ARGB 8888");
++          pixel_format = CAIRO_FORMAT_ARGB32;
++          break;
++        case mir_pixel_format_xbgr_8888:
++          g_warning ("pixel format XBGR 8888 not supported, using XRGB 8888");
++          pixel_format = CAIRO_FORMAT_RGB24;
++          break;
++        case mir_pixel_format_argb_8888:
++          pixel_format = CAIRO_FORMAT_ARGB32;
++          break;
++        case mir_pixel_format_xrgb_8888:
++          pixel_format = CAIRO_FORMAT_RGB24;
++          break;
++        case mir_pixel_format_bgr_888:
++          g_error ("pixel format BGR 888 not supported");
++          break;
++        case mir_pixel_format_rgb_888:
++          g_error ("pixel format RGB 888 not supported");
++          break;
++        case mir_pixel_format_rgb_565:
++          pixel_format = CAIRO_FORMAT_RGB16_565;
++          break;
++        case mir_pixel_format_rgba_5551:
++          g_error ("pixel format RGBA 5551 not supported");
++          break;
++        case mir_pixel_format_rgba_4444:
++          g_error ("pixel format RGBA 4444 not supported");
++          break;
++        default:
++          g_error ("unknown pixel format");
++          break;
++        }
+ 
+       cairo_surface = cairo_image_surface_create_for_data ((unsigned char *) region.vaddr,
+                                                            pixel_format,
+-- 
+2.6.2
+

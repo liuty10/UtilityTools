@@ -1,0 +1,49 @@
+From b6bf982289273c1416ba66281b8c09a1ee6a33a4 Mon Sep 17 00:00:00 2001
+From: Benjamin Otte <otte@redhat.com>
+Date: Thu, 8 Oct 2015 14:34:39 +0200
+Subject: iconhelper: Track icon-name fallback usage in the GIcon
+
+Passing GTK_ICON_LOOKUP_GENERIC_FALLBACK to the icon lookup doesn't work
+for GIcons, so we have to make sure we use the right GThemedIcon.
+
+Fixes image-icon-name-use-fallback reftest.
+---
+ gtk/gtkiconhelper.c | 15 ++++++++++++++-
+ 1 file changed, 14 insertions(+), 1 deletion(-)
+
+diff --git a/gtk/gtkiconhelper.c b/gtk/gtkiconhelper.c
+index 7d42cb8..dfc95ff 100644
+--- a/gtk/gtkiconhelper.c
++++ b/gtk/gtkiconhelper.c
+@@ -914,7 +914,10 @@ _gtk_icon_helper_set_icon_name (GtkIconHelper *self,
+       icon_name[0] != '\0')
+     {
+       self->priv->storage_type = GTK_IMAGE_ICON_NAME;
+-      self->priv->gicon = g_themed_icon_new (icon_name);
++      if (self->priv->use_fallback)
++        self->priv->gicon = g_themed_icon_new_with_default_fallbacks (icon_name);
++      else
++        self->priv->gicon = g_themed_icon_new (icon_name);
+       _gtk_icon_helper_set_icon_size (self, icon_size);
+     }
+ }
+@@ -1025,6 +1028,16 @@ _gtk_icon_helper_set_use_fallback (GtkIconHelper *self,
+     {
+       self->priv->use_fallback = use_fallback;
+       _gtk_icon_helper_invalidate (self);
++      if (self->priv->storage_type == GTK_IMAGE_ICON_NAME)
++        {
++          GIcon *old_icon = self->priv->gicon;
++          const char *icon_name = g_themed_icon_get_names (G_THEMED_ICON (self->priv->gicon))[0];
++          if (self->priv->use_fallback)
++            self->priv->gicon = g_themed_icon_new_with_default_fallbacks (icon_name);
++          else
++            self->priv->gicon = g_themed_icon_new (icon_name);
++          g_object_unref (old_icon);
++        }
+       return TRUE;
+     }
+   return FALSE;
+-- 
+cgit v0.11.2
+

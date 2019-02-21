@@ -1,0 +1,13 @@
+Index: gtk+-3.18.3/gtk/gtksettings.c
+===================================================================
+--- gtk+-3.18.3.orig/gtk/gtksettings.c	2015-11-11 01:32:31.859659829 +0100
++++ gtk+-3.18.3/gtk/gtksettings.c	2015-11-11 01:32:31.859659829 +0100
+@@ -467,7 +467,7 @@
+                                              g_param_spec_string ("gtk-fallback-icon-theme",
+                                                                   P_("Fallback Icon Theme Name"),
+                                                                   P_("Name of a icon theme to fall back to"),
+-                                                                  NULL,
++                                                                  "Adwaita",
+                                                                   GTK_PARAM_READWRITE | G_PARAM_DEPRECATED),
+                                              NULL);
+   g_assert (result == PROP_FALLBACK_ICON_THEME);
