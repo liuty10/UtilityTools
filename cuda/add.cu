@@ -13,8 +13,11 @@ int main(){
     b = 8;
     cudaMemcpy(d_a, &a, sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_b, &b, sizeof(int), cudaMemcpyHostToDevice);
-    add<<<1,1>>>(d_a, d_b, d_c);
+    //add<<<1,1>>>(d_a, d_b, d_c);
     cudaMemcpy(&c, d_c, sizeof(int), cudaMemcpyDeviceToHost);
+    cudaFree(d_a);
+    cudaFree(d_b);
+    cudaFree(d_c);
     printf("result =%d\n",c);
     return 0;
 }

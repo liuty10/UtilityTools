@@ -7,7 +7,7 @@ __global__ void add(int *a, int *b, int *c){
 	c[blockIdx.x] = a[blockIdx.x] + b[blockIdx.x];
 }
 
-#define N 512
+#define N 512*512*1024
 int random_ints(int *p, int n){
 	int i;
 	for(i=0;i<n;i++)
