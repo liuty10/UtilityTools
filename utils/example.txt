@@ -16,3 +16,9 @@ $ ./prog 3
     ./prog(main+0x65) [0x80488fb]
     /lib/libc.so.6(__libc_start_main+0xdc) [0xb7e38f9c]
     ./prog [0x8048711]
+
+3. long long gettime_nanoTime(void)
+
+4. perf_start() to start perf profiling
+
+5. perf_end() to stop perf profiling
