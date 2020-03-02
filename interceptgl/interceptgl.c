@@ -21,5 +21,9 @@ void glXSwapBuffers(Display *dpy, GLXDrawable drawable){
     last_time_tmp0 = time_tmp0;
     real_swapbuffer(dpy, drawable);
     time_tmp1 = gettime_nanoTime();
-    perf_start("cycles",0);
+    // instructions
+    // cycles
+    // LLC_MISSES
+    // LLC_REFERENCES
+    perf_start("instructions,cycles,LLC_MISSES,LLC_REFERENCES",0);
 }
