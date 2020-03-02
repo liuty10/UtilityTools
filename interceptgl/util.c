@@ -4,7 +4,6 @@
 #define NUM_COUNTERS 4
 static int       perfstart_flag = 0; 
 static uint64_t  count[NUM_COUNTERS];
-static perf_event_desc_t * fds=NULL;
 
 thread_pfm_context_t thread_ctx;
 
@@ -67,7 +66,7 @@ perf_event_open(struct perf_event_attr *hw_event, pid_t pid,
 	return ret;
 }*/
 
-void perf_start(char * evns, pid_t tid){
+void perf_start(char * evns){
     	if(perfstart_flag == 0){
 		/* initialize PMU monitoring */
        		int ret = pfm_operations_init();
@@ -83,37 +82,36 @@ void perf_start(char * evns, pid_t tid){
 	        if(ret || !(thread_ctx.num_fds))
 	        	return;
 
-                fds = thread_ctx.fds;
 		for(int i = 0; i < thread_ctx.num_fds; i++){
-		        fds[i].hw.disabled = 1;
-		        fds[i].hw.exclude_user = 0;
-		        fds[i].hw.exclude_kernel = 0;
-		        fds[i].hw.exclude_hv = 1;
-		        //fds[i].hw.read_format = PERF_FORMAT_SCALE;
-		        fds[i].hw.inherit = 0; /* only monitor the current thread */
+		   thread_ctx.fds[i].hw.disabled = 1;
+		   thread_ctx.fds[i].hw.exclude_user = 0;
+		   thread_ctx.fds[i].hw.exclude_kernel = 0;
+		   thread_ctx.fds[i].hw.exclude_hv = 1;
+		   thread_ctx.fds[i].hw.inherit = 0; /* only monitor the current thread */
 		
-		        fds[i].fd = perf_event_open(&fds[i].hw, thread_ctx.tid, -1, -1, 0);
-		        if (fds[i].fd == -1) {
-		                warn("cannot attach event%d %s to thread [%d]: ", i,
-		                     fds[i].name, thread_ctx.tid);
-		                return;
-		        }
-		        DPRINTF("PMU context opened for thread [%d]\n", thread_ctx.tid);
+		   thread_ctx.fds[i].fd = perf_event_open(&(thread_ctx.fds[i].hw), 
+							    thread_ctx.tid, -1, -1, 0);
+		   if (thread_ctx.fds[i].fd == -1) {
+		           warn("cannot attach event%d %s to thread [%d]: ", i,
+		                thread_ctx.fds[i].name, thread_ctx.tid);
+		           return;
+		   }
+		   DPRINTF("PMU context opened for thread [%d]\n", thread_ctx.tid);
 		}
         }
         perfstart_flag += 1;
         if(perfstart_flag == 7) perfstart_flag = 1;
 	for(int i = 0; i < thread_ctx.num_fds; i++){
-		ioctl(fds[i].fd, PERF_EVENT_IOC_RESET, 0);
-		ioctl(fds[i].fd, PERF_EVENT_IOC_ENABLE, 0);
+		ioctl(thread_ctx.fds[i].fd, PERF_EVENT_IOC_RESET, 0);
+		ioctl(thread_ctx.fds[i].fd, PERF_EVENT_IOC_ENABLE, 0);
 	}
 }
 
 void perf_end(){
     	if(perfstart_flag != 0){
 		for(int i = 0; i < thread_ctx.num_fds; i++){
-			ioctl(fds[i].fd, PERF_EVENT_IOC_DISABLE, 0);
-			read(fds[i].fd, &count[i], sizeof(uint64_t));
+			ioctl(thread_ctx.fds[i].fd, PERF_EVENT_IOC_DISABLE, 0);
+			read(thread_ctx.fds[i].fd, &count[i], sizeof(uint64_t));
 			MY_LOG("%ld\n",count[i]);
 		}
         }else{

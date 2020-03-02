@@ -25,5 +25,5 @@ void glXSwapBuffers(Display *dpy, GLXDrawable drawable){
     // cycles
     // LLC_MISSES
     // LLC_REFERENCES
-    perf_start("instructions,cycles,LLC_MISSES,LLC_REFERENCES",0);
+    perf_start("instructions,cycles,LLC_MISSES,LLC_REFERENCES");
 }

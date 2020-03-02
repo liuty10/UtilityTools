@@ -38,5 +38,5 @@ typedef struct __thread_pfm_context{
 long long gettime_nanoTime(void);
 void MY_TRACE(void);
 
-void perf_start();
+void perf_start(char * evns);
 void perf_end();
