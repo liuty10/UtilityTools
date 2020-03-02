@@ -11,15 +11,15 @@ void glXSwapBuffers(Display *dpy, GLXDrawable drawable){
     static long long last_time_tmp0=0;
     static long long time_tmp0=0;
     static long long time_tmp1=0;
-
+    perf_end();
     if(!real_swapbuffer)
         real_swapbuffer = dlsym(RTLD_NEXT, "glXSwapBuffers");
 
     time_tmp0 = gettime_nanoTime();
     if(time_tmp1!=0)
-        fprintf(stderr, "fake glXSwapBuffers is called,app time: %f, oneFrameTime: %f\n",(time_tmp0-time_tmp1)/1000000.0,(time_tmp0-last_time_tmp0)/1000000.0);
+        fprintf(stderr, "App time: %f, oneFrameTime: %f\n",(time_tmp0-time_tmp1)/1000000.0,(time_tmp0-last_time_tmp0)/1000000.0);
     last_time_tmp0 = time_tmp0;
     real_swapbuffer(dpy, drawable);
     time_tmp1 = gettime_nanoTime();
-
+    perf_start("cycles",0);
 }
