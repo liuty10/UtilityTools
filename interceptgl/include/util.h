@@ -15,17 +15,17 @@
 #include <time.h>
 
 #include <execinfo.h>
-
-#define MY_LOG(fmt, ...)				\
-	do { fprintf(stderr, "%s: "fmt , __func__,	\
-		     ## __VA_ARGS__);} while (0);
-
 /* 
  * We use libpfm and helper functions from Stephane Eranian 
  */
 #include "perf_util.h"
 #include "pfm_operations.h"
 #include "pfm_common.h"
+
+#define NUM_COUNTERS 4
+#define MY_LOG(fmt, ...)				\
+	do { fprintf(stderr, "%s: "fmt , __func__,	\
+		     ## __VA_ARGS__);} while (0);
 
 typedef struct __thread_pfm_context{
         perf_event_desc_t *fds;
@@ -35,8 +35,14 @@ typedef struct __thread_pfm_context{
         int enabled;
 }thread_pfm_context_t;
 
+struct args {
+    void* myfunc;
+    void* arg;
+    int   thr_idx;
+};
+
 long long gettime_nanoTime(void);
 void MY_TRACE(void);
 
-void perf_start(char * evns);
+void perf_start();
 void perf_end();

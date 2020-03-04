@@ -1,22 +1,12 @@
 TARGET=main
-SOURCE=./main.c ./util.h ./util.c ./perf_util.c ./perf_util.h
+SOURCE=./main.c
 
-CFLAGS=-I$(PFM_PATH)/libpfm4/perf_examples/ -I$(PFM_PATH)/libpfm4/include/ -I/media/lty/newspace/pfm/pfm_multi/ -I/media/lty/newspace/pfm/libpfm4/include/perfmon
-LIBS=-lpthread -lrt $(PFM_PATH)/libpfm4/lib/libpfm.a
-#LIBS=-lpthread -lrt -L$(PFM_PATH)/libpfm4/lib/libpfm.a
+CFLAGS=-I$(PFM_PATH)/libpfm4/perf_examples/ -I$(PFM_PATH)/libpfm4/include/ -I/media/lty/newspace/pfm/pfm_multi/ -I/media/lty/newspace/pfm/libpfm4/include/perfmon -I./include
+LIBS=-lpthread -lrt $(PFM_PATH)/libpfm4/lib/libpfm.a -L./lib -linterceptgl
 
 all: ${TARGET}
 ${TARGET}:${SOURCE}
 	gcc ${CFLAGS} -o ${TARGET} ${SOURCE} ${LIBS}
 
-#app:./pic.c
-#	gcc pic.c -o pic -lX11
-
-#run:
-#	LD_PRELOAD=./libmyxputimage.so ./pic
-
 clean:
 	rm ${TARGET}
-#    gcc hi.c -o hi -lX11
-#    gcc hi.c -o hi -I /usr/include/X11 -L /usr/X11/lib -lX11
-#    gcc hi.c -o hi -I /sowhere/else -L /who/knows/where -lX11 

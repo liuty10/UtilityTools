@@ -2,19 +2,16 @@
 // gcc pthread_example.c -o program -lpthread
 #include <pthread.h>
 #include <stdio.h>
-int share_value = 0;
-
+#include "util.h"
 /* this function is run by the second thread */
 void *inc_x(void *x_void_ptr)
 {
 
 /* increment x to 100 */
 int *x_ptr = (int *)x_void_ptr;
-while(++(*x_ptr) < 100);
+while(++(*x_ptr) < 1000)
+    printf("x increment finished\n");
 
-printf("x increment finished, 1=share v: %d\n", share_value);
-
-share_value++;
 /* the function must return something - NULL will do */
 return NULL;
 
@@ -26,12 +23,11 @@ int main()
 int x = 0, y = 0;
 
 /* show the initial values of x and y */
-printf("x: %d, y: %d, 0=v: %d\n", x, y, share_value);
+printf("x: %d, y: %d\n", x, y);
 
 /* this variable is our reference to the second thread */
 pthread_t inc_x_thread;
 
-share_value++;
 /* create a second thread which executes inc_x(&x) */
 if(pthread_create(&inc_x_thread, NULL, inc_x, &x)) {
 
@@ -40,9 +36,15 @@ return 1;
 
 }
 /* increment y to 100 in the first thread */
-while(++y < 100);
+while(++y < 1000)
+{
 
-printf("y increment finished, 2=share v: %d\n", share_value);
+   perf_start();
+   printf("y increment finished\n");
+   perf_end();
+       
+}
+printf("y increment finished\n");
 
 /* wait for the second thread to finish */
 if(pthread_join(inc_x_thread, NULL)) {
