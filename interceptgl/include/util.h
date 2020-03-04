@@ -13,7 +13,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 #include <time.h>
-
+#include<sys/syscall.h>
 #include <execinfo.h>
 /* 
  * We use libpfm and helper functions from Stephane Eranian 

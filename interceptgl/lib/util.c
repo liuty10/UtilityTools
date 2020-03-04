@@ -1,6 +1,6 @@
 #include "util.h"
 
-int 	thr_ctx_idx1 = 0;
+int 	thr_ctx_idx = 0;
 int 	pfm_init_flag = -1;
 int      perfstart_flag = 0; 
 uint64_t count[NUM_COUNTERS];
@@ -72,7 +72,7 @@ void perf_start(){
                    pfm_init_flag = pfm_operations_init();
                    if(pfm_init_flag != 0 ) errx(1, "PMU initialization failed\n");
                 }
-		thread_ctxs[0].tid = 0;
+		thread_ctxs[0].tid = syscall( __NR_gettid );
         	thread_ctxs[0].fds = NULL;
         	thread_ctxs[0].num_fds = 0;
                 char *evns = getenv("PFM_EVENTS");
@@ -89,7 +89,7 @@ void perf_start(){
 		   thread_ctxs[0].fds[j].hw.exclude_hv = 1;
 		   thread_ctxs[0].fds[j].hw.inherit = 0; /* only monitor the current thread */
 		   thread_ctxs[0].fds[j].fd = perf_event_open(&(thread_ctxs[0].fds[j].hw), 
-							        thread_ctxs[0].tid, -1, -1, 0);
+							        0, -1, -1, 0);
 		   if (thread_ctxs[0].fds[j].fd == -1) {
 		           warn("cannot attach event%d %s to thread [%d]: ", j,
 		                thread_ctxs[0].fds[j].name, thread_ctxs[0].tid);
@@ -100,7 +100,7 @@ void perf_start(){
         }
         perfstart_flag++;
         //if(perfstart_flag == 3) perfstart_flag = 1;
-        if(perfstart_flag == thr_ctx_idx1+2) perfstart_flag = 1;
+        if(perfstart_flag == thr_ctx_idx+2) perfstart_flag = 1;
 
 	for(int i = 0; i < thread_ctxs[perfstart_flag-1].num_fds; i++){
 		ioctl(thread_ctxs[perfstart_flag-1].fds[i].fd, PERF_EVENT_IOC_RESET, 0);
@@ -113,7 +113,7 @@ void perf_end(){
 		for(int i = 0; i < thread_ctxs[perfstart_flag-1].num_fds; i++){
 		    ioctl(thread_ctxs[perfstart_flag-1].fds[i].fd, PERF_EVENT_IOC_DISABLE, 0);
 		    read (thread_ctxs[perfstart_flag-1].fds[i].fd, &count[i], sizeof(uint64_t));
-		    fprintf(stderr, "thread%d : event%d : %ld, totla thread:%d, addr: %p\n",perfstart_flag-1,i,count[i],thr_ctx_idx1, &thr_ctx_idx1);
+		    fprintf(stderr, "%dnd threadid: %d : event%d: %ld\n", perfstart_flag-1, thread_ctxs[perfstart_flag-1].tid, i, count[i]);
 		}
         }else{
 		MY_LOG(" Perf didn't start, START FIRST\n");

@@ -8,7 +8,7 @@
 
 //#include <pthread.h>
 
-extern int 	thr_ctx_idx1;
+extern int 	thr_ctx_idx;
 extern int 	pfm_init_flag;
 extern thread_pfm_context_t thread_ctxs[MAX_NUM_THREADS];
 
@@ -39,7 +39,7 @@ void* mythread(void* input){
     	pfm_init_flag = pfm_operations_init();
     	if(pfm_init_flag != 0 ) errx(1, "PMU initialization failed\n");
     }
-    thread_ctxs[thr_idx].tid = 0;
+    thread_ctxs[thr_idx].tid = syscall( __NR_gettid );
     thread_ctxs[thr_idx].fds = NULL;
     thread_ctxs[thr_idx].num_fds = 0;
     char *evns = getenv("PFM_EVENTS");
@@ -55,8 +55,7 @@ void* mythread(void* input){
        thread_ctxs[thr_idx].fds[j].hw.exclude_kernel = 0;
        thread_ctxs[thr_idx].fds[j].hw.exclude_hv = 1;
        thread_ctxs[thr_idx].fds[j].hw.inherit = 0; /* only monitor the current thread */
-       thread_ctxs[thr_idx].fds[j].fd = perf_event_open(&(thread_ctxs[thr_idx].fds[j].hw), 
-    					         thread_ctxs[thr_idx].tid, -1, -1, 0);
+       thread_ctxs[thr_idx].fds[j].fd = perf_event_open(&(thread_ctxs[thr_idx].fds[j].hw), 0, -1, -1, 0);
        if (thread_ctxs[thr_idx].fds[j].fd == -1) {
                warn("cannot attach event%d %s to thread [%d]: ", j,
                     thread_ctxs[thr_idx].fds[j].name, thread_ctxs[thr_idx].tid);
@@ -76,10 +75,7 @@ int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *realthre
     struct args *myargs = (struct args *)malloc(sizeof(struct args));
     myargs->myfunc = realthread;
     myargs->arg    = arg;
-    //thr_ctx_idx++;
-    __atomic_fetch_add(&thr_ctx_idx1, 1, __ATOMIC_SEQ_CST);
-    myargs->thr_idx = thr_ctx_idx1;
-    fprintf(stderr, "pthread_create intercepted: thr_idx:%d, addr:%p\n", thr_ctx_idx1, &thr_ctx_idx1);
-
+    __atomic_fetch_add(&thr_ctx_idx, 1, __ATOMIC_SEQ_CST);
+    myargs->thr_idx = thr_ctx_idx;
     return real_pthread_create(thread, attr, mythread, myargs);
 }
