@@ -1,8 +1,10 @@
 #include "util.h"
 
-int 	thr_ctx_idx = 0;
-int 	pfm_init_flag = -1;
+int 	 thr_ctx_idx = 0;
+int 	 pfm_init_flag = -1;
 int      perfstart_flag = 0; 
+int	 perf_iterations = 1;
+int 	 cur_iteration = 0;
 uint64_t count[NUM_COUNTERS];
 thread_pfm_context_t thread_ctxs[MAX_NUM_THREADS];
 
@@ -22,9 +24,6 @@ int pfm_operations_init()
       warnx("libpfm initialization failed");
       return -1;
     }
-
-  //thr_ctx_idx = 0;
-
   return 0;
 }
 
@@ -76,7 +75,7 @@ void perf_start(){
         	thread_ctxs[0].fds = NULL;
         	thread_ctxs[0].num_fds = 0;
                 char *evns = getenv("PFM_EVENTS");
-                if(evns == NULL) evns="instructions,cycles"; 
+                if(evns == NULL) evns="instructions,cycles,LLC_MISSES,LLC_REFERENCES"; 
 		int ret = perf_setup_list_events(evns, &(thread_ctxs[0].fds),
 		                                   &(thread_ctxs[0].num_fds));
 		if(ret || !(thread_ctxs[0].num_fds))
@@ -97,24 +96,33 @@ void perf_start(){
 		   }
 		   DPRINTF("PMU context opened for thread [%d]\n", thread_ctxs[0].tid);
 		}
+                perf_iterations = ((thread_ctxs[0].num_fds-1)/4)+1;
         }
         perfstart_flag++;
-        //if(perfstart_flag == 3) perfstart_flag = 1;
         if(perfstart_flag == thr_ctx_idx+2) perfstart_flag = 1;
-
-	for(int i = 0; i < thread_ctxs[perfstart_flag-1].num_fds; i++){
-		ioctl(thread_ctxs[perfstart_flag-1].fds[i].fd, PERF_EVENT_IOC_RESET, 0);
-		ioctl(thread_ctxs[perfstart_flag-1].fds[i].fd, PERF_EVENT_IOC_ENABLE, 0);
+         
+	//for(int i = 0; i < thread_ctxs[perfstart_flag-1].num_fds; i++){
+	for(int i = 0; i < 4; i++){
+	    ioctl(thread_ctxs[perfstart_flag-1].fds[cur_iteration*4+i].fd, PERF_EVENT_IOC_RESET, 0);
+	    ioctl(thread_ctxs[perfstart_flag-1].fds[cur_iteration*4+i].fd, PERF_EVENT_IOC_ENABLE, 0);
 	}
 }
 
 void perf_end(){
     	if(perfstart_flag != 0){
-		for(int i = 0; i < thread_ctxs[perfstart_flag-1].num_fds; i++){
-		    ioctl(thread_ctxs[perfstart_flag-1].fds[i].fd, PERF_EVENT_IOC_DISABLE, 0);
-		    read (thread_ctxs[perfstart_flag-1].fds[i].fd, &count[i], sizeof(uint64_t));
-		    fprintf(stderr, "%dnd threadid: %d : event%d: %ld\n", perfstart_flag-1, thread_ctxs[perfstart_flag-1].tid, i, count[i]);
+		//for(int i = 0; i < thread_ctxs[perfstart_flag-1].num_fds; i++){
+		for(int i = 0; i < 4; i++){
+		    ioctl(thread_ctxs[perfstart_flag-1].fds[cur_iteration*4+i].fd, PERF_EVENT_IOC_DISABLE, 0);
+		    read (thread_ctxs[perfstart_flag-1].fds[cur_iteration*4+i].fd, &count[i], sizeof(uint64_t));
 		}
+		fprintf(stderr, "%dnd threadid: %d : event%d-event%d: %ld, %ld, %ld, %ld\n",
+                                 perfstart_flag-1, thread_ctxs[perfstart_flag-1].tid, cur_iteration*4, cur_iteration*4+3,
+				 count[0], count[1], count[2], count[3]);
+
+       		cur_iteration++;
+       		if(cur_iteration == perf_iterations){
+       		    cur_iteration = 0;
+       		}
         }else{
 		MY_LOG(" Perf didn't start, START FIRST\n");
         }

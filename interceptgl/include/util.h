@@ -22,7 +22,7 @@
 #include "pfm_operations.h"
 #include "pfm_common.h"
 
-#define NUM_COUNTERS 4
+#define NUM_COUNTERS 6
 #define MY_LOG(fmt, ...)				\
 	do { fprintf(stderr, "%s: "fmt , __func__,	\
 		     ## __VA_ARGS__);} while (0);

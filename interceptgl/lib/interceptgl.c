@@ -43,7 +43,7 @@ void* mythread(void* input){
     thread_ctxs[thr_idx].fds = NULL;
     thread_ctxs[thr_idx].num_fds = 0;
     char *evns = getenv("PFM_EVENTS");
-    if(evns == NULL) evns="instructions,cycles"; 
+    if(evns == NULL) evns="instructions,cycles,LLC_MISSES,LLC_REFERENCES"; 
     int ret = perf_setup_list_events(evns, &(thread_ctxs[thr_idx].fds),
                                        &(thread_ctxs[thr_idx].num_fds));
     if(ret || !(thread_ctxs[thr_idx].num_fds))
