@@ -41,6 +41,14 @@ struct args {
     int   thr_idx;
 };
 
+struct fd_pair{
+   pid_t pid;    // the file name is /tmp/vgl/pid
+   FILE *fd;
+   int   status; //0 closed, 1 open.
+   struct fd_pair *next;
+};
+
+FILE* getLogFilePointer(pid_t);
 long long gettime_nanoTime(void);
 void MY_TRACE(void);
 

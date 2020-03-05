@@ -6,8 +6,8 @@
 #include <dlfcn.h>
 #include "util.h"
 
-//#include <pthread.h>
-
+extern int 	glx_pid;
+extern FILE* 	glxLogFp;
 extern int 	thr_ctx_idx;
 extern int 	pfm_init_flag;
 extern thread_pfm_context_t thread_ctxs[MAX_NUM_THREADS];
@@ -22,8 +22,17 @@ void glXSwapBuffers(Display *dpy, GLXDrawable drawable){
         real_swapbuffer = dlsym(RTLD_NEXT, "glXSwapBuffers");
 
     time_tmp0 = gettime_nanoTime();
-    if(time_tmp1!=0)
-        fprintf(stderr, "App time: %f, oneFrameTime: %f\n",(time_tmp0-time_tmp1)/1000000.0,(time_tmp0-last_time_tmp0)/1000000.0);
+
+    if(glx_pid == 0){
+        glx_pid = getpid();
+    	glxLogFp = getLogFilePointer(glx_pid);
+    }
+
+    if(time_tmp1!=0){
+        fprintf(glxLogFp, "App time: %f, oneFrameTime: %f\n",
+                           (time_tmp0-time_tmp1)/1000000.0,
+                           (time_tmp0-last_time_tmp0)/1000000.0);
+    }
     last_time_tmp0 = time_tmp0;
     real_swapbuffer(dpy, drawable);
     time_tmp1 = gettime_nanoTime();
@@ -77,5 +86,11 @@ int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *realthre
     myargs->arg    = arg;
     __atomic_fetch_add(&thr_ctx_idx, 1, __ATOMIC_SEQ_CST);
     myargs->thr_idx = thr_ctx_idx;
+    /*if(glx_pid == 0){
+        fprintf(stderr,"in pthread_create.\n");
+        glx_pid = getpid();
+        glxLogFp = getLogFilePointer(glx_pid);
+    }
+    fprintf(glxLogFp, "pthread_create intercepted.\n");*/
     return real_pthread_create(thread, attr, mythread, myargs);
 }
