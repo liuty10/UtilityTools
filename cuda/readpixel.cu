@@ -14,8 +14,10 @@ int usepbo = 1;
 struct cudaGraphicsResource *cuda_pbo_dest_resource;
 
 // Some dummy kernel to prevent optimizations
-__global__ void kernel(unsigned*)
+__global__ void kernel(char* in)
 {
+    int index = threadIdx.x + blockIdx.x*blockDim.x;
+    in[index] = in[index]-1;
 }
 
 #define cutilSafeCall(err)  __cudaSafeCall(err,__FILE__,__LINE__)
@@ -62,26 +64,24 @@ void display()
         glReadBuffer(GL_FRONT);
         glBindBuffer(GL_PIXEL_PACK_BUFFER, pbo);
         glReadPixels(0, 0, WIDTH, HEIGHT, GL_BGRA, GL_UNSIGNED_BYTE, 0);
-        // map the PBO to process its data by CPU
-        //memcpy(bits, pboBits, WIDTH * HEIGHT *4);
-        unsigned char* pboBits = NULL;
-        pboBits = (unsigned char *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
-        if(!pboBits){printf("Could not map pboBits\n"); return;}
-        printf("r: %d\n", pboBits[(my*WIDTH+ mx)*4 + 0 ] );
-        printf("g: %d\n", pboBits[(my*WIDTH+ mx)*4 + 1 ] );
-        printf("b: %d\n", pboBits[(my*WIDTH+ mx)*4 + 2 ] );
-        printf("a: %d\n", pboBits[(my*WIDTH+ mx)*4 + 3 ] );
-        glUnmapBuffer(GL_PIXEL_PACK_BUFFER_EXT);
+        //unsigned char* pboBits = NULL;
+        //pboBits = (unsigned char *)glMapBuffer(GL_PIXEL_PACK_BUFFER, GL_READ_ONLY);
+        //if(!pboBits){printf("Could not map pboBits\n"); return;}
+        //printf("r: %d\n", pboBits[(my*WIDTH+ mx)*4 + 0 ] );
+        //printf("g: %d\n", pboBits[(my*WIDTH+ mx)*4 + 1 ] );
+        //printf("b: %d\n", pboBits[(my*WIDTH+ mx)*4 + 2 ] );
+        //printf("a: %d\n", pboBits[(my*WIDTH+ mx)*4 + 3 ] );
+        //glUnmapBuffer(GL_PIXEL_PACK_BUFFER_EXT);
 
         cutilSafeCall(cudaGraphicsMapResources(1, &cuda_pbo_dest_resource));
         size_t size = 0;
         void* device_ptr = NULL;
         cutilSafeCall( cudaGraphicsResourceGetMappedPointer(&device_ptr, &size, cuda_pbo_dest_resource) );
-        kernel<<<1,1>>>((unsigned*)device_ptr);
-        cutilSafeCall( cudaGraphicsUnmapResources(1, &cuda_pbo_dest_resource) );
         glBindBuffer(GL_PIXEL_PACK_BUFFER_EXT, 0);
 
-        // Unmap and unregister the graphics resource
+        kernel<<<size/512,512>>>((char*)device_ptr);
+        cudaDeviceSynchronize();
+        cutilSafeCall( cudaGraphicsUnmapResources(1, &cuda_pbo_dest_resource) );
 
     }
 
