@@ -7,13 +7,13 @@
 #include <sys/ioctl.h>
 #include <linux/perf_event.h>
 #include <asm/unistd.h>
-#include <X11/Xlib.h>
-#include <GL/glx.h>
-#include <dlfcn.h>
+//#include <X11/Xlib.h>
+//#include <GL/glx.h>
+//#include <dlfcn.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include <time.h>
-#include<sys/syscall.h>
+//#include<sys/syscall.h>
 #include <execinfo.h>
 /* 
  * We use libpfm and helper functions from Stephane Eranian 
