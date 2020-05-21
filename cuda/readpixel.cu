@@ -7,40 +7,50 @@
 #include <stdio.h>
 #include <cuda_gl_interop.h>
 
+#define WIDTH 800
+#define HEIGHT 600
+
 int mx = 0, my = 0;
-int WIDTH=800, HEIGHT=600;
 GLuint pbo=0;
 char * bits = NULL;
 int usepbo = 1;
 struct cudaGraphicsResource *cuda_pbo_dest_resource;
 
 // Some dummy kernel to prevent optimizations
-__global__ void kernel(char* in)
-{
+//__global__ void kernel(char* in)
+//{
     //int index = threadIdx.x + blockIdx.x*blockDim.x;
     //in[index] = in[index]-1;
-}
+//}
 
-//__global__ void rgb2yuv444Kernel(unsigned char* rgbImg, unsigned char* yuvOut){
-__global__ void rgb2yuv444Kernel(unsigned char* rgbImg){
+__global__ void rgb2yuv444Kernel(unsigned char* rgbImg, unsigned char* yuv420){
+//__global__ void rgb2yuv444Kernel(unsigned char* rgbImg){
  
     unsigned char r, g, b;
     unsigned char y, cb, cr;
  
     int index;
-    index = (threadIdx.x + blockIdx.x * blockDim.x)*3;
+    index = threadIdx.x + blockIdx.x * blockDim.x;
     
-    r = rgbImg[index + 0];
-    g = rgbImg[index + 1];
-    b = rgbImg[index + 2];
+    r = rgbImg[index*3 + 0];
+    g = rgbImg[index*3 + 1];
+    b = rgbImg[index*3 + 2];
      
     y  = (unsigned char)( 0.299*r + 0.587*g +  0.114*b);
     cb = (unsigned char)(-0.169*r - 0.331*g +  0.499*b + 128);
     cr = (unsigned char)( 0.499*r - 0.418*g - 0.0813*b + 128);
+
+    //y  = (unsigned char)( 0.299*r + 0.587*g +  0.114*b);
+    //cb = (unsigned char)(-0.147*r - 0.289*g +  0.463*b);
+    //cr = (unsigned char)( 0.615*r - 0.515*g - 0.1*b);
      
-    rgbImg[index + 0] = y;
-    rgbImg[index + 1] = cb;
-    rgbImg[index + 2] = cr;
+    rgbImg[index*3 + 0] = y;
+    rgbImg[index*3 + 1] = cb;
+    rgbImg[index*3 + 2] = cr;
+
+    yuv420[index + 0] = y;
+    yuv420[index/2 + WIDTH*HEIGHT] = cb;
+    yuv420[index/2 + WIDTH*HEIGHT*3/2] = cr;
 }
 
 #define cutilSafeCall(err)  __cudaSafeCall(err,__FILE__,__LINE__)
@@ -101,9 +111,9 @@ void display()
         glBindBuffer(GL_PIXEL_PACK_BUFFER_EXT, 0);
 
         //kernel<<<size/512,512>>>((char*)device_ptr);
-        unsigned char* yuvOut;
-        cudaMalloc((void**)&yuvOut, size);
-        rgb2yuv444Kernel<<<WIDTH*HEIGHT/256,256>>>((unsigned char*)device_ptr);
+        unsigned char* d_yuvOut;
+        cudaMalloc((void**)&d_yuvOut, WIDTH*HEIGHT*3/2);
+        rgb2yuv444Kernel<<<WIDTH*HEIGHT/256,256>>>((unsigned char*)device_ptr, d_yuvOut);
         //rgb2yuv444Kernel<<<WIDTH*HEIGHT/256,256>>>((unsigned char*)device_ptr,yuvOut);
         cudaDeviceSynchronize();
         cutilSafeCall( cudaGraphicsUnmapResources(1, &cuda_pbo_dest_resource) );
