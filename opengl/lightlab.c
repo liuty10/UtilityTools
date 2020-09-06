@@ -1,4 +1,5 @@
 
+// https://www.khronos.org/registry/OpenGL/extensions/ARB/ARB_timer_query.txt
 /* Copyright (c) Mark J. Kilgard, 1994. */
 
 /* This program is freely distributable without licensing fees 
@@ -6,6 +7,7 @@
    implied. This program is -not- in the public domain. */
 
 #include <stdlib.h>
+#include <unistd.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <GL/glut.h>
@@ -48,7 +50,7 @@ GLfloat slate_ambient[] =
 {0.02, 0.02, 0.02}, slate_diffuse[] =
 {0.02, 0.01, 0.01}, slate_specular[] =
 {0.4, 0.4, 0.4}, slate_shininess = .78125;
-
+int query_flag = 0;
 int shade_model = GL_SMOOTH;
 char *left_light, *right_light;
 char *ico_material, *teapot_material, *torus_material;
@@ -72,17 +74,13 @@ output(GLfloat x, GLfloat y, char *format,...)
 void 
 display(void)
 {
-    //-----------------------------
-    GLuint m_iTimeQuery;
-    GLint available = 0;
-    GLuint64 timeElapsed=0;
-    glGenQueries(1, &m_iTimeQuery);
-    //glGetQueryObjectiv(m_iTimeQuery, GL_QUERY_RESULT_AVAILABLE, &available);
-    //if(available){
-    //    glGetQueryObjectuiv(m_iTimeQuery, GL_QUERY_RESULT, &timeElapsed);
-        glBeginQuery(GL_TIME_ELAPSED, m_iTimeQuery);
-    //}
-    //-----------------------------
+  //----------------------------
+  GLuint m_iTimeQuery[2];
+  GLint available = 0;
+  GLuint64 timeElapsed=0;
+  glGenQueries(2, m_iTimeQuery);
+  glBeginQuery(GL_TIME_ELAPSED, m_iTimeQuery[0]);
+
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
   glMatrixMode(GL_MODELVIEW);
   glPushMatrix();
@@ -126,17 +124,24 @@ display(void)
   glMatrixMode(GL_PROJECTION);
   glPopMatrix();
   glPopAttrib();
-    //-----------------------------
-    //if(available)
-        glEndQuery(GL_TIME_ELAPSED);
-        while(!available){
-             glGetQueryObjectiv(m_iTimeQuery, GL_QUERY_RESULT_AVAILABLE, &available);
-        }
-        glGetQueryObjectui64v(m_iTimeQuery, GL_QUERY_RESULT, &timeElapsed);
-        //AdjustObjectLODBasedOnDrawTime(0, timeElapsed);
-    printf("timeEclipsed:%ld\n",timeElapsed);
-    //-----------------------------
+  //-----------------------------
+  glEndQuery(GL_TIME_ELAPSED);
+  while(!available){
+       glGetQueryObjectiv(m_iTimeQuery[0], GL_QUERY_RESULT_AVAILABLE, &available);
+  }
+  glGetQueryObjectui64v(m_iTimeQuery[0], GL_QUERY_RESULT, &timeElapsed);
+  printf("gl operation timeEclipsed:%ld\t\t",timeElapsed);
+  //-----------------------------
+  glBeginQuery(GL_TIME_ELAPSED, m_iTimeQuery[1]);
   glutSwapBuffers();
+  //-----------------------------
+  glEndQuery(GL_TIME_ELAPSED);
+  while(!available){
+       glGetQueryObjectiv(m_iTimeQuery[1], GL_QUERY_RESULT_AVAILABLE, &available);
+  }
+  glGetQueryObjectui64v(m_iTimeQuery[1], GL_QUERY_RESULT, &timeElapsed);
+  printf("swapbuffer timeEclipsed:%ld\n",timeElapsed);
+
 }
 
 void 

@@ -1,0 +1,39 @@
+// How to compile:
+// 	gcc -shared -fPIC -Wl,--no-as-needed -o libinterceptglx.so interceptglx.c
+// How to use:
+// 	LD_PRELOAD=${PATH_TO_THIS_LIB}/libinterceptglx.so ./game_scripts.sh
+
+#define _GNU_SOURCE
+#include <X11/Xlib.h>
+#include <GL/glx.h>
+#include <stdio.h>
+#include <stdint.h>
+#include <dlfcn.h>
+#include <time.h>
+
+long long gettime_nanoTime(void)
+{
+    struct timespec __tv;
+    clock_gettime(CLOCK_MONOTONIC,&__tv);
+    return(long long)(__tv.tv_sec * 1e9 + __tv.tv_nsec);
+}
+
+void glXSwapBuffers(Display *dpy, GLXDrawable drawable){
+    static void(*real_swapbuffer)(Display *, GLXDrawable) = NULL;
+    static long long last_time_tmp0=0;
+    static long long time_tmp0=0;
+    static long long time_tmp1=0;
+    if(!real_swapbuffer)
+        real_swapbuffer = dlsym(RTLD_NEXT, "glXSwapBuffers");
+
+    time_tmp0 = gettime_nanoTime();
+
+    if(time_tmp1!=0){
+        fprintf(stderr, "App time: %f, oneFrameTime: %f\n",
+                           (time_tmp0-time_tmp1)/1000000.0,
+                           (time_tmp0-last_time_tmp0)/1000000.0);
+    }
+    last_time_tmp0 = time_tmp0;
+    real_swapbuffer(dpy, drawable);
+    time_tmp1 = gettime_nanoTime();
+}

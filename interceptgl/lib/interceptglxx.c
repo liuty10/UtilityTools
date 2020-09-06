@@ -38,6 +38,43 @@ inline static void handle_dlerror(void)
     }  
 }
 
+void* mythread(void* input){
+    void(*realthread)(void *) = NULL;
+    realthread 	= ((struct args*)input)->myfunc;
+    void* arg 	= ((struct args*)input)->arg;
+    int thr_idx = ((struct args*)input)->thr_idx;
+    if(pfm_init_flag != 0){
+    	pfm_init_flag = pfm_operations_init();
+    	if(pfm_init_flag != 0 ) errx(1, "PMU initialization failed\n");
+    }
+    thread_ctxs[thr_idx].tid = syscall( __NR_gettid );
+    thread_ctxs[thr_idx].fds = NULL;
+    thread_ctxs[thr_idx].num_fds = 0;
+    char *evns = getenv("PFM_EVENTS");
+    if(evns == NULL) evns="instructions,cycles,LLC_MISSES,LLC_REFERENCES"; 
+    int ret = perf_setup_list_events(evns, &(thread_ctxs[thr_idx].fds),
+                                       &(thread_ctxs[thr_idx].num_fds));
+    if(ret || !(thread_ctxs[thr_idx].num_fds))
+    	return NULL;
+
+    for(int j = 0; j < thread_ctxs[thr_idx].num_fds; j++){
+       thread_ctxs[thr_idx].fds[j].hw.disabled = 1;
+       thread_ctxs[thr_idx].fds[j].hw.exclude_user = 0;
+       thread_ctxs[thr_idx].fds[j].hw.exclude_kernel = 0;
+       thread_ctxs[thr_idx].fds[j].hw.exclude_hv = 1;
+       thread_ctxs[thr_idx].fds[j].hw.inherit = 0; /* only monitor the current thread */
+       thread_ctxs[thr_idx].fds[j].fd = perf_event_open(&(thread_ctxs[thr_idx].fds[j].hw), 0, -1, -1, 0);
+       if (thread_ctxs[thr_idx].fds[j].fd == -1) {
+               warn("cannot attach event%d %s to thread [%d]: ", j,
+                    thread_ctxs[thr_idx].fds[j].name, thread_ctxs[thr_idx].tid);
+               return NULL;
+       }
+       DPRINTF("PMU context opened for thread [%d]\n", thread_ctxs[thr_idx].tid);
+    }
+    //call real thread;    
+    realthread(arg);
+}
+
 #ifdef __cplusplus
 extern "C"
 {
@@ -112,6 +149,25 @@ void *dlsym(void *handle, const char *name)
             fprintf(stderr, "found dlsym\n");
     }
     return (*o_dlsym)(handle, name);
+}
+
+int pthread_create(pthread_t *thread, const pthread_attr_t *attr, void *realthread, void *arg){
+    static int (*real_pthread_create)(pthread_t *, const pthread_attr_t *, void *, void *) = NULL;
+    if(!real_pthread_create)
+        real_pthread_create = dlsym(RTLD_NEXT, "pthread_create");
+
+    struct args *myargs = (struct args *)malloc(sizeof(struct args));
+    myargs->myfunc = realthread;
+    myargs->arg    = arg;
+    __atomic_fetch_add(&thr_ctx_idx, 1, __ATOMIC_SEQ_CST);
+    myargs->thr_idx = thr_ctx_idx;
+    /*if(glx_pid == 0){
+        fprintf(stderr,"in pthread_create.\n");
+        glx_pid = getpid();
+        glxLogFp = getLogFilePointer(glx_pid);
+    }
+    fprintf(glxLogFp, "pthread_create intercepted.\n");*/
+    return real_pthread_create(thread, attr, mythread, myargs);
 }
 
 #ifdef __cplusplus
